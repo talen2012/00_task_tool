@@ -1,0 +1,12 @@
+# 环境文件夹
+.venv/
+# Python编译文件
+__pycache__/
+# chromedriver
+chromedriver-win64/
+# VSCode配置文件
+.vscode/
+# 所有excel文件，出于保密需要
+*.xlsx
+*.xlsm
+*.xls
