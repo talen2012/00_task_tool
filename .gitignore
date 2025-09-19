@@ -10,3 +10,5 @@ chromedriver-win64/
 *.xlsx
 *.xlsm
 *.xls
+# test文件
+test/

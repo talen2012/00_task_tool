@@ -2,7 +2,8 @@ import time
 import random
 import openpyxl
 from copy import copy
-from openpyxl.styles import Font
+from openpyxl.styles import Font, colors
+from openpyxl.worksheet.hyperlink import Hyperlink
 from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -348,6 +349,7 @@ def write_single_ability_detail_to_excel(target_file_name, wb, ability_details_l
                 wb.save(target_file_name)
             except Exception as e:
                 print(f"保存Excel文件时发生错误：{e}")
+                print(f"检查文件 {target_file_name} 是否已在其它软件中打开，关闭后重试")
             return
         # 如果该行不为空，且能力名称匹配，则更新该行
         if row_in_ws[0] == ability_details.get("能力名称", ""):
@@ -357,6 +359,7 @@ def write_single_ability_detail_to_excel(target_file_name, wb, ability_details_l
                 wb.save(target_file_name)
             except Exception as e:
                 print(f"保存Excel文件时发生错误：{e}")
+                print(f"检查文件 {target_file_name} 是否已在其它软件中打开，关闭后重试")
             return  # 找到即写入并返回
 
 def browse_ability_list(driver, target_file_name, wb, abilities_count_cell, ability_details_list_ws):
@@ -498,7 +501,7 @@ def get_company_info(driver, company_name, target_file_name, wb, abilities_count
 def main():
     # 配置参数
     target_url = "https://atom.189.cn/pc/#/index"  # 替换为目标网站的URL
-    target_file_path = "01_company_info_by_selenium\\原子能力平台_0912.xlsx"  # 目标文件，至少包含“公司名称”sheet
+    target_file_path = "01_company_info_by_selenium\\原子能力平台_0919.xlsx"  # 目标文件，至少包含“公司名称”sheet
     driver_path = "chromedriver-win64\\chromedriver.exe"  # 浏览器驱动路径（若已添加到环境变量可省略）
     user_data_dir = "E:\\01_project\\00_task_tool\\chromedriver-win64\\chrome_profile"  # Chrome用户数据目录路径,保存cookie,登录状态等
 
@@ -547,7 +550,8 @@ def main():
 
     # 遍历目录sheet公司名称，从第三行开始
     for _, row in enumerate(dir_ws.iter_rows(min_row=3, values_only=False)):
-        company_name = row[company_name_col_idx].value
+        company_name_cell = row[company_name_col_idx]
+        company_name = company_name_cell.value
         status_cell = row[status_col_idx]
         abilities_count_cell = row[abilities_count_col_idx]
         timestamp_cell= row[timestamp_col_idx]
@@ -564,17 +568,25 @@ def main():
         else:
             single_company_ws = wb.copy_worksheet(template_ws)
             single_company_ws.title = company_name
-            # copy_template(template_ws, single_company_ws)
-            wb.save(target_file_path)
-        # # 添加超链接
+            # copy_template(template_ws, single_company_ws) # 字体、边框、保护、合并单元格等都可以复制
         
-        # row[0].hyperlink = f"#\'{company_name}\'!A1"
-        # row[0].style = "Hyperlink"
-        # # 设置下划线
-        # if row[0].font:
-        #     row[0].font = Font(name=row[0].font.name, size=row[0].font.size, bold=row[0].font.bold, italic=row[0].font.italic, color=row[0].font.color, underline="single")
-        # else:
-        #     row[0].font = Font(underline="single")
+        # 公司名称添加超链接
+        # 链接到本文档中内容，不能直接给hyperlink赋值，这种方式只能链接到文件或网页
+        # 需要用到Hyperlink类,并指定ref和location, ref是单元格位置，location是目标位置
+        # location格式：sheetname!A1
+        # 如果sheetname包含空格、括号或特殊字符，需要用单引号括起来 'sheet name'!A1
+        # 因此统一用单引号括起来即可
+        company_name_cell.hyperlink = Hyperlink(ref=company_name_cell.coordinate, location=f"'{company_name}'!A1")
+        company_name_cell.font = Font(name=company_name_cell.font.name,
+                                      size=company_name_cell.font.size,
+                                      color=colors.BLUE,
+                                      underline="single"
+                                      )
+        try:
+            wb.save(target_file_path)
+        except Exception as e:
+            print(f"保存Excel文件时发生错误：{e}")
+            print(f"检查文件 {target_file_path} 是否已在其它软件中打开，关闭后重试")
 
         # 获取能力详情并填充到文件中
         company_info = get_company_info(driver, company_name, target_file_path,wb, abilities_count_cell, single_company_ws)
@@ -582,8 +594,20 @@ def main():
         status_cell.value = company_info["状态"] # 更新公司状态
         timestamp_cell.value = datetime.now().strftime('%Y-%m-%d %H:%M:%S') # 更新查询时间
         print(f"公司“{company_name}”信息获取完成，状态：{company_info['状态']}")
+        try:
+            wb.save(target_file_path)
+        except Exception as e:
+            print(f"保存Excel文件时发生错误：{e}")
+            print(f"检查文件 {target_file_path} 是否已在其它软件中打开，关闭后重试")
+    # 将目录页设置为活动页面
+    wb.active = dir_ws
+    try:
         wb.save(target_file_path)
-        
+    except Exception as e:
+        print(f"保存Excel文件时发生错误：{e}")
+        print(f"检查文件 {target_file_path} 是否已在其它软件中打开，关闭后重试")
+
+    print("所有公司已遍历完成！")
     # 关闭浏览器
     driver.quit()
 
