@@ -1,0 +1,40 @@
+# 百万以下数据配置
+below_million:
+  workbook_name: "百万以下"
+  sheet_name: "百万以下"
+  required_cols:
+    - 集团商机编码
+    - 单元
+    - 行业标识
+    - 预计签约日期
+    - 商机预测金额(万元)
+
+# 百万以上数据配置
+above_million:
+  workbook_name: "百万以上"
+  sheet_name: "百万以上"
+  required_cols:
+    - 集团商机编码
+    - 单元
+    - 行业标识
+    - 预计签约时间
+    - 是否目标时间段
+    - 预估签约金额(万元)
+
+# 签约情况数据配置
+contract_status:
+  workbook_name: "签约情况"
+  sheet_name: "签约清单"
+  required_cols:
+    # - 比对  # 实际签约数据中，需要删去"比对"列内容包含"集成""陕数""省公司"的合同，现在没这个需求
+    - 单元（新）
+    - 行业（新）
+    - 签约日期
+    - 省口径签约额
+    - 商机编码
+
+# 合同排除关键词，目前无此需求
+# contract_exclude_keywords:
+#   - 集成
+#   - 陕数
+#   - 省公司
