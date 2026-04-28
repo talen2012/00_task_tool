@@ -3,6 +3,7 @@ below_million:
   workbook_name: "百万以下"
   sheet_name: "百万以下"
   required_cols:
+    # 不要更改顺序，必要时仅在原位置修改
     - 集团商机编码
     - 单元
     - 行业标识
@@ -14,24 +15,35 @@ above_million:
   workbook_name: "百万以上"
   sheet_name: "百万以上"
   required_cols:
+    # 不要更改顺序，必要时仅在原位置修改
     - 集团商机编码
     - 单元
     - 行业标识
     - 预计签约时间
-    - 是否目标时间段
     - 预估签约金额(万元)
+    - 是否目标时间段
 
 # 签约情况数据配置
 contract_status:
   workbook_name: "签约情况"
   sheet_name: "签约清单"
   required_cols:
+    # 不要更改顺序，必要时仅在原位置修改
     # - 比对  # 实际签约数据中，需要删去"比对"列内容包含"集成""陕数""省公司"的合同，现在没这个需求
     - 单元（新）
     - 行业（新）
     - 签约日期
     - 省口径签约额
     - 商机编码
+
+# 商机编码数据配置，用于严口径统计时对签约情况进行筛选
+biz_code:
+  workbook_name: "商机编码"
+  sheet_name: "Sheet1"
+  required_cols:
+    # 不要更改顺序，必要时仅在原位置修改
+    - 集团商机编码
+    - 预计签约日期
 
 # 合同排除关键词，目前无此需求
 # contract_exclude_keywords:
