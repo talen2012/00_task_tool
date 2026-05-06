@@ -12,3 +12,5 @@ chromedriver-win64/
 *.xls
 # test文件
 test/
+# 日志文件
+*.log
