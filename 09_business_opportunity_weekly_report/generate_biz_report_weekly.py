@@ -11,6 +11,7 @@ import yaml
 from typing import Dict
 from datetime import datetime
 import logging
+import traceback
 
 # @Time     : 2026/04/13/16:00
 # @Author   : talen
@@ -163,7 +164,7 @@ class BizReportApp:
         frame_settings_caliber = tk.LabelFrame(frame_settings, text="统计口径", padx=10, pady=10)
         frame_settings_caliber.pack(side='left', padx=10, pady=5,anchor='n')
         ttk.Checkbutton(frame_settings_caliber, text="宽口径", variable=self.loose_mode).grid(row=0, column=0, padx=5)
-        ttk.Checkbutton(frame_settings_caliber, text='严口径', variable=self.strict_mode).grid(row=0, column=1, padx=5)
+        ttk.Checkbutton(frame_settings_caliber, text='窄口径', variable=self.strict_mode).grid(row=0, column=1, padx=5)
 
         # =============================== 操作区域 ===============================
         frame_actions = tk.LabelFrame(self.root, padx=10, pady=10)
@@ -342,19 +343,19 @@ class BizReportApp:
             if not self.config:
                 raise ValueError(f"配置文件内容为空, 请检查：{self.config_filepath}")
         except PermissionError as pe:
-            self._log(f"加载配置失败：\n无权限读取配置文件: {self.config_filepath}\n{str(pe)}", 'error')
+            self._log(f"加载配置失败：\n无权限读取配置文件: {self.config_filepath}\n{traceback.format_exc()}", 'error')
             messagebox.showerror('错误', '加载配置失败')
             config_load_success = False
         except ValueError as ve:
-            self._log(f"加载配置失败：\n{str(ve)}", 'error')
+            self._log(f"加载配置失败：\n{traceback.format_exc()}", 'error')
             messagebox.showerror('错误', '加载配置失败')
             config_load_success = False
         except FileNotFoundError as fnfe:
-            self._log(f"加载配置失败：\n{str(fnfe)}", 'error')
+            self._log(f"加载配置失败：\n{traceback.format_exc()}", 'error')
             messagebox.showerror('错误', '加载配置失败')
             config_load_success = False
         except Exception as e:
-            self._log(f"加载配置失败：\n{str(e)}", 'error')
+            self._log(f"加载配置失败：\n{traceback.format_exc()}", 'error')
             messagebox.showerror('错误', '加载配置失败')
             config_load_success = False
 
@@ -388,11 +389,11 @@ class BizReportApp:
             self.col_order = self.config['col_order']
         # 捕获：配置文件少写了字段（比如漏了 above_million）
         except KeyError as ke:
-            self._log(f"加载配置失败：\n配置文件缺少关键字段: {str(ke)}", 'error')
+            self._log(f"加载配置失败：\n配置文件缺少关键字段: {traceback.format_exc()}", 'error')
             messagebox.showerror('错误', '加载配置失败')
             config_load_success = False
         except Exception as e:
-            self._log(f"加载配置失败：\n{str(e)}", 'error')
+            self._log(f"加载配置失败：\n{traceback.format_exc()}", 'error')
             messagebox.showerror('错误', '加载配置失败')
             config_load_success = False
         
@@ -426,16 +427,16 @@ class BizReportApp:
                 if "百万" in display_name or "签约" in display_name:
                     self._log(f"{display_name}缺失：单元{_check_na(df, required_cols[1])}个，行业{_check_na(df, required_cols[2])}个，日期{_check_na(df, required_cols[3])}个", "warning")
             except ValueError as ve: # usecols列缺失，捕获ValueError
-                self._log(f"{display_name}缺少必需列：\n{str(ve)}", 'error')
+                self._log(f"{display_name}缺少必需列：\n{traceback.format_exc()}", 'error')
                 self._update_status("读取文件失败")
                 messagebox.showerror('错误', f'加载{display_name}失败')
                 return None
             except Exception as e:
-                self._log(f"{display_name}格式不正确：\n{str(e)}", 'error')
+                self._log(f"{display_name}格式不正确：\n{traceback.format_exc()}", 'error')
                 messagebox.showerror('错误', f'加载{display_name}失败')
                 return None
         # 单独提醒全量商机编码文件关键列数据缺失
-        self._log(f"全量商机编码文件缺失：日期{_check_na(df_list[5], self.biz_code_required_cols[1])}个")
+        self._log(f"全量商机编码文件缺失：日期{_check_na(df_list[5], self.biz_code_required_cols[1])}个", "warning")
         return df_list
 
     def _summarize_by_unit_and_industry(self, df_unit_map, df_industry_map, df_biz_above_million, df_biz_below_million, df_contract_status, df_biz_code): 
@@ -446,7 +447,7 @@ class BizReportApp:
         @param df_contract_status: 合同实际签约情况
         @param df_unit_map: 单元名称映射表
         @param df_industry_map: 行业名称映射表
-        @param df_biz_code: 全量商机编码及预计签约日期, 用于严口径校验
+        @param df_biz_code: 全量商机编码及预计签约日期, 用于窄口径校验
         """
         # =============================== 数据预处理 ===============================
         self._update_status("数据预处理")
@@ -613,36 +614,42 @@ class BizReportApp:
         self._log("成功标记窄口径签约数据！")
 
         # 6. 保存预处理之后的数据到文件，留待后续参考
-        def save_prehandled_data(origin_filepath, sheet_name, df):
-            file_name = os.path.basename(origin_filepath)
-            new_filepath = re.sub(
-                r'(\.xlsx|\.xls)$', 
-                fr'_预处理_{pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")}\1',
-                file_name,
-                flags=re.IGNORECASE
-                )
+        def save_prehandled_data(file_list):
             prehandled_output_dir = os.path.join(self.base_dir, "预处理后的数据")
-            os.makedirs(prehandled_output_dir, exist_ok=True)
-            abs_new_filepath = os.path.join(prehandled_output_dir, new_filepath)
-            try:
-                df.to_excel(
-                    abs_new_filepath,
-                    sheet_name = sheet_name,
-                    index = False
-                )
-                self._log(f"预处理后的数据文件已保存至: \n{abs_new_filepath}")
-                return True
-            except Exception as e:
-                self._log(f"保存预处理数据失败：\n{str(e)}", level="error")
-                self._update_status("保存预处理数据失败")
-                messagebox.showerror("失败", f"保存预处理数据失败：\n{str(e)}")
-                return False
-            
-        if not save_prehandled_data(self.biz_above_million_filepath.get(), self.above_million_sheet, df_above):
-            return
-        if not save_prehandled_data(self.biz_below_million_filepath.get(), self.below_million_sheet, df_below):
-            return
-        if not save_prehandled_data(self.contract_status_filepath.get(), self.contract_status_sheet, df_contract_merged):
+            now_str = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
+            current_prehandles_dir = os.path.join(prehandled_output_dir, now_str)
+            os.makedirs(current_prehandles_dir, exist_ok=True)
+
+            for origin_filepath, sheet_name, df in file_list:
+                file_name = os.path.basename(origin_filepath)
+                new_filepath = re.sub(
+                    r'(\.xlsx|\.xls)$', 
+                    fr'_预处理_{now_str}\1',
+                    file_name,
+                    flags=re.IGNORECASE
+                    )
+               
+                abs_new_filepath = os.path.join(current_prehandles_dir, new_filepath)
+                try:
+                    df.to_excel(
+                        abs_new_filepath,
+                        sheet_name = sheet_name,
+                        index = False
+                    )
+                    self._log(f"预处理后的数据文件已保存至: \n{abs_new_filepath}")
+                except Exception as e:
+                    self._log(f"保存预处理数据失败：\n{traceback.format_exc()}", level="error")
+                    self._update_status("保存预处理数据失败")
+                    messagebox.showerror("失败", f"保存预处理数据失败：\n{str(e)}")
+                    return False
+            return True
+        
+        prehandled_data_file_list = [
+            (self.biz_above_million_filepath.get(), self.above_million_sheet, df_above),
+            (self.biz_below_million_filepath.get(), self.below_million_sheet, df_below),
+            (self.contract_status_filepath.get(), self.contract_status_sheet, df_contract_merged)
+        ]  
+        if not save_prehandled_data(prehandled_data_file_list):
             return
 
         # ==================================== 数据汇总 ====================================
@@ -690,7 +697,7 @@ class BizReportApp:
             if by_month:
                 df_above_period = df_plan_period[df_plan_period['above_flag']]
             else:
-                df_above_period = df_all_biz[(df_all_biz['above_flag']) & df_all_biz['target'] == "是"].copy()
+                df_above_period = df_all_biz[(df_all_biz['above_flag']) & (df_all_biz['target'] == "是")].copy()
             df_agg_above_period = unified_count_sum_fun(df_above_period, groupby_col, '百万以上计划签约')
             # 计划签约情况
             df_agg_below_period = unified_count_sum_fun(df_below_period, groupby_col, '百万以下计划签约') # 百万以下
@@ -737,11 +744,12 @@ class BizReportApp:
             # df.apply(axis=1) 依次传入整行
             # df['列'].apply() 传入单列的每个元素
             # df.applymap() 作用在全表每个单元格
-            df_stat['转签率'] =  df_stat.apply(
-                lambda x: "{:.2%}".format(x['实际签约量'] / x['计划签约量'])
-                if x['计划签约量'] != 0 else '/',
-                axis=1
-            )
+            # df_stat['转签率'] =  df_stat.apply(
+            #     lambda x: "{:.2%}".format(x['实际签约量'] / x['计划签约量'])
+            #     if x['计划签约量'] != 0 else 0,
+            #     axis=1
+            # )
+            df_stat['转签率'] = 0 # 先赋值为0，在写入excel时，重新计算
             # 按指定顺序重新排布列索引
             df_stat = df_stat.reindex(columns=self.col_order)
             # 给所有列名加前缀
@@ -751,14 +759,14 @@ class BizReportApp:
 
         def stat_standard_pipline(df_all_biz, df_contract_merged, groupby_col, strict_mode: bool):
             """
-            统一的统计函数，可指定按照宽口径/严口径、单元/行业维度进行统计
+            统一的统计函数，可指定按照宽口径/窄口径、单元/行业维度进行统计
             """
-            # 严口径筛选
+            # 窄口径筛选
             if strict_mode:
                 df_contract_filterd = df_contract_merged[df_contract_merged['strict']].copy()
             else:
                 df_contract_filterd = df_contract_merged.copy() # 宽口径不筛选，直接使用原表
-            mode_logtext = "严口径" if strict_mode else "宽口径"
+            mode_logtext = "窄口径" if strict_mode else "宽口径"
             groupby_logtext = "单元" if groupby_col=="unit" else "行业" if groupby_col=="industry" else None
             self._log(f"正在按照{mode_logtext}-{groupby_logtext}维度进行统计...")
             # 整体计划签约情况统计
@@ -824,13 +832,19 @@ class BizReportApp:
             @param df_industry 按行业维度统计的商机计划与签约信息
             @param df_top_10 指定月top10商机
             """
-            def write_df_to_template_sheet(ws, df, start_row, start_col, write_header=False):
+            def write_df_to_template_sheet(ws, df, start_row, start_col):
                 for row_idx, row_data in enumerate(df.itertuples(index=False, name=None)): # name=None不生产命名元组，直接返回普通元组
                     for col_idx, cell_value in enumerate(row_data):
                         target_row = start_row + row_idx
                         target_col = start_col + col_idx
                         target_cell = ws.cell(target_row, target_col)
                         target_cell.value = cell_value
+                        # 处理转签率这一列，转签率总和列单独算，计划签约为0时，转签率置为"/"
+                        if col_idx == 6 or col_idx == 23:
+                            if ws.cell(target_row, target_col - 2).value == 0:
+                                target_cell.value = "/"
+                            else:
+                                target_cell.value = ws.cell(target_row, target_col - 1).value / ws.cell(target_row, target_col - 2).value
 
             self._log("开始加载通报模板...")
             self._update_status("生成报告")
@@ -840,7 +854,7 @@ class BizReportApp:
                     data_only=False # 保留公式、格式
                     )
             except Exception as e:
-                self._log(f"加载通报模板失败：\n{str(e)}", "error")
+                self._log(f"加载通报模板失败：\n{traceback.format_exc()}", "error")
                 self._update_status("报告生成失败")
                 messagebox.showerror("路径无效", f"无法加载通报模板！")
                 return False
@@ -855,7 +869,27 @@ class BizReportApp:
             ws = wb[target_sheet_name]
             self._log(f"成功加载目标Sheet: {target_sheet_name}!")
 
-            # 定义3部分的起始位置，从1开始计数
+            # 更新表头
+            period_st = pd.to_datetime(self.start_date.get())
+            period_ed = pd.to_datetime(self.end_date.get())
+            period_col_label = f'{period_st.year}年{period_st.month}月{period_st.day}日-{period_ed.year}年{period_ed.month}月{period_ed.day}日'
+            ws.cell(2, 6).value = period_col_label
+            ws.cell(41, 6).value = period_col_label
+
+            cur_month = pd.to_datetime(f"{self.stat_year.get()}-{self.stat_month.get()}")
+            cur_month_col_label = f'{cur_month.year}年{cur_month.month}月'
+            ws.cell(2, 23).value = cur_month_col_label
+            ws.cell(41, 23).value = cur_month_col_label
+
+            col_offset = 0
+            for _ in range(0, 3):
+                cur_month += pd.DateOffset(months=1)
+                col_label = f'{cur_month.year}年{cur_month.month}月'
+                ws.cell(2, 40 + col_offset).value = col_label
+                ws.cell(41, 40 + col_offset).value = col_label
+                col_offset += 2
+
+            # 定义三部分的起始位置，从1开始计数
             write_config = {
                 # 单元维度
                 "unit": {
@@ -906,7 +940,7 @@ class BizReportApp:
             else:
                 self._log("商机top10数据为空", "warning")
             # 保存文件
-            filename = f"商机报告_{'严口径' if strict_mode else '宽口径'}_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+            filename = f"商机报告_{'窄口径' if strict_mode else '宽口径'}_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
             filepath = os.path.join(self.base_dir, filename)
             try:
                 wb.save(filepath)
@@ -917,7 +951,7 @@ class BizReportApp:
                 return True
             except Exception as e:
                 wb.close()
-                self._log(f"报告文件保存失败: \n{str(e)}", "error")
+                self._log(f"报告文件保存失败: \n{traceback.format_exc()}", "error")
                 self._update_status("报告生成失败")
                 messagebox.showerror("生成失败", f"报告生成失败：\n{str(e)}")
                 return False
@@ -944,7 +978,7 @@ class BizReportApp:
             # 2. 统计
             self._summarize_by_unit_and_industry(*df_set)
         except Exception as e:
-            self._log(f"执行统计流程出错：\n{str(e)}", 'error')
+            self._log(f"执行统计流程出错：\n{traceback.format_exc()}", 'error')
             self._update_status("统计流程出错")
             messagebox.showerror("错误", f"执行统计流程出错：\n{str(e)}")
 
